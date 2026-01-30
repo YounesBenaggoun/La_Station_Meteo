@@ -27,11 +27,11 @@ const int LED_RED    = 5;   // Fahrenheit
 
 /* Simulation pins (pas de DHT en mode simulation) */
 const int TEMP_PIN     = 22;
-const int HUMIDITY_PIN = 23;
+
 
 /* ================= STATES ================= */
 bool degreeModeCelsius = true;
-bool lastButtonState = HIGH;
+bool lastButtonState = 0;
 
 /* Anti-rebond */
 unsigned long lastDebounceTime = 0;
@@ -94,14 +94,14 @@ void handleButton() {
 }
 
 /* ================= MQTT PUBLISH ================= */
-void publishTelemetry(float temperature, float humidity) {
+void publishTelemetry(float temperature, float humidity, bool degreeModeCelsius) {
   StaticJsonDocument<256> doc;
 
   doc["deviceId"] = DEVICE_ID;
   doc["seq"] = seq++;
   doc["temperature"] = temperature;
   doc["humidity"] = humidity;
-  doc["unit"] = degreeModeCelsius ? "C" : "F";
+  doc["unit"] = degreeModeCelsius;
 
   char payload[256];
   serializeJson(doc, payload);
