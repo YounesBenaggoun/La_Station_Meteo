@@ -1,0 +1,14 @@
+{
+  "name": "station-meteo",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "concurrently \"npm run bridge\" \"npm run frontend\"",
+    "bridge": "cd bridge && node index.js",
+    "frontend": "cd frontend && npm run dev",
+    "install:all": "npm install && cd bridge && npm install && cd ../frontend && npm install"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
