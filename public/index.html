@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Météo - Station Connectée</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-default">
+    
+    <div class="app-wrapper">
+        
+        <!-- SIDEBAR -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="search-input-wrapper">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="text" placeholder="Rechercher" disabled>
+                </div>
+            </div>
+
+            <div class="sidebar-list">
+                <!-- Active Station Card -->
+                <div class="sidebar-card active">
+                    <div class="card-left">
+                        <div class="card-title">Ma Station</div>
+                        <div class="card-time" id="sidebar-time">--:--</div>
+                    </div>
+                    <div class="card-right">
+                        <div class="card-temp" id="sidebar-temp">--°</div>
+                        <div class="card-hl">H: --° B: --°</div>
+                    </div>
+                    <div class="card-bg-condition"></div>
+                </div>
+            </div>
+            
+            <div class="sidebar-footer" style="margin-top: auto; padding-top: 20px;">
+                 <button id="unit-toggle" class="glass-btn" style="width: 100%; text-align: center;">Basculer en °F</button>
+            </div>
+        </aside>
+
+        <!-- MAIN CONTENT -->
+        <main class="main-content">
+            
+            <!-- TOP HEADER (City & Big Temp) -->
+            <header class="weather-header">
+                <h1 class="city-name">Station HETIC</h1>
+                <div class="current-temp" id="main-temp">--°</div>
+                <div class="current-condition" id="main-condition">Attente des données...</div>
+                <div class="current-hl">
+                    <span id="max-temp">H: --°</span>
+                    <span id="min-temp">B: --°</span>
+                </div>
+            </header>
+
+            <!-- SCROLLABLE CONTENT -->
+            <div class="scroll-container">
+                
+                <!-- HOURLY FORECAST STRIP -->
+                <section class="glass-panel hourly-strip">
+                    <div class="hourly-item">
+                        <span>Maint.</span>
+                        <i class="fa-solid fa-cloud-sun"></i>
+                        <span id="hourly-now">--°</span>
+                    </div>
+                    <!-- Mock Hourly Data -->
+                    <div class="hourly-item"><span>17 h</span><i class="fa-solid fa-cloud"></i><span>17°</span></div>
+                    <div class="hourly-item"><span>18 h</span><i class="fa-solid fa-cloud"></i><span>16°</span></div>
+                    <div class="hourly-item"><span>19 h</span><i class="fa-solid fa-cloud-moon"></i><span>15°</span></div>
+                    <div class="hourly-item"><span>20 h</span><i class="fa-solid fa-moon"></i><span>14°</span></div>
+                    <div class="hourly-item"><span>21 h</span><i class="fa-solid fa-moon"></i><span>13°</span></div>
+                    <div class="hourly-item"><span>22 h</span><i class="fa-solid fa-moon"></i><span>13°</span></div>
+                    <div class="hourly-item"><span>23 h</span><i class="fa-solid fa-moon"></i><span>12°</span></div>
+                </section>
+
+                <!-- BENTO GRID -->
+                <div class="bento-grid">
+                    
+                    <!-- 10-DAY FORECAST (Large Vertical) -->
+                    <div class="glass-panel forecast-card">
+                        <div class="panel-title"><i class="fa-regular fa-calendar"></i> PRÉVISIONS SUR 10 JOURS</div>
+                        <div class="forecast-list">
+                            <div class="forecast-row">
+                                <span class="day">Auj.</span>
+                                <div class="icon"><i class="fa-solid fa-cloud-sun"></i></div>
+                                <div class="temps">
+                                    <span class="low">12°</span>
+                                    <div class="temp-bar-bg"><div class="temp-bar-fill" style="left: 20%; width: 60%;"></div></div>
+                                    <span class="high">17°</span>
+                                </div>
+                            </div>
+                            <div class="forecast-row">
+                                <span class="day">Sam.</span>
+                                <div class="icon"><i class="fa-solid fa-cloud"></i></div>
+                                <div class="temps">
+                                    <span class="low">10°</span>
+                                    <div class="temp-bar-bg"><div class="temp-bar-fill" style="left: 10%; width: 50%;"></div></div>
+                                    <span class="high">16°</span>
+                                </div>
+                            </div>
+                            <div class="forecast-row">
+                                <span class="day">Dim.</span>
+                                <div class="icon"><i class="fa-solid fa-cloud-rain"></i></div>
+                                <div class="temps">
+                                    <span class="low">11°</span>
+                                    <div class="temp-bar-bg"><div class="temp-bar-fill" style="left: 15%; width: 55%;"></div></div>
+                                    <span class="high">15°</span>
+                                </div>
+                            </div>
+                            <!-- More mock days -->
+                            <div class="forecast-row"><span class="day">Lun.</span><div class="icon"><i class="fa-solid fa-sun"></i></div><div class="temps"><span class="low">12°</span><div class="temp-bar-bg"><div class="temp-bar-fill" style="left: 25%; width: 60%;"></div></div><span class="high">18°</span></div></div>
+                            <div class="forecast-row"><span class="day">Mar.</span><div class="icon"><i class="fa-solid fa-sun"></i></div><div class="temps"><span class="low">13°</span><div class="temp-bar-bg"><div class="temp-bar-fill" style="left: 30%; width: 65%;"></div></div><span class="high">19°</span></div></div>
+                        </div>
+                    </div>
+
+                    <!-- MAP CARD -->
+                    <div class="glass-panel map-card">
+                        <div class="panel-title"><i class="fa-solid fa-map"></i> PRÉCIPITATIONS</div>
+                        <div class="map-visual">
+                            <!-- Just a visual placeholder gradient to mimic map -->
+                            <div class="location-dot">
+                                <span>Ma Station</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SMALL SQUARES GRID -->
+                    <div class="squares-grid">
+                        
+                        <!-- UV INDEX -->
+                        <div class="glass-panel square-card">
+                            <div class="panel-title"><i class="fa-solid fa-sun"></i> INDICE UV</div>
+                            <div class="big-value">1</div>
+                            <div class="sub-text">Faible</div>
+                            <div class="slider-track"><div class="slider-dot"></div></div>
+                        </div>
+
+                        <!-- SUNSET -->
+                        <div class="glass-panel square-card">
+                            <div class="panel-title"><i class="fa-solid fa-moon"></i> COUCHER</div>
+                            <div class="big-value">18:49</div>
+                            <div class="sub-text">Lever : 08:24</div>
+                        </div>
+
+                        <!-- WIND -->
+                        <div class="glass-panel square-card">
+                            <div class="panel-title"><i class="fa-solid fa-wind"></i> VENT</div>
+                            <div class="compass-visual">
+                                <div class="compass-arrow"></div>
+                                <div class="compass-text">12<br><small>km/h</small></div>
+                            </div>
+                        </div>
+
+                        <!-- RAINFALL -->
+                        <div class="glass-panel square-card">
+                            <div class="panel-title"><i class="fa-solid fa-droplet"></i> PRÉCIPITATIONS</div>
+                            <div class="big-value">0 mm</div>
+                            <div class="sub-text">dans les dernières 24 h</div>
+                        </div>
+
+                        <!-- FEELS LIKE (Dynamic) -->
+                        <div class="glass-panel square-card">
+                            <div class="panel-title"><i class="fa-solid fa-temperature-half"></i> RESSENTI</div>
+                            <div class="big-value" id="feels-like-val">--°</div>
+                            <div class="sub-text">Similaire à la réelle</div>
+                        </div>
+
+                        <!-- HUMIDITY (Dynamic) -->
+                        <div class="glass-panel square-card">
+                            <div class="panel-title"><i class="fa-solid fa-water"></i> HUMIDITÉ</div>
+                            <div class="big-value" id="humidity-val">--%</div>
+                            <div class="sub-text">Point de rosée: 12°</div>
+                        </div>
+
+                        <!-- VISIBILITY -->
+                        <div class="glass-panel square-card">
+                            <div class="panel-title"><i class="fa-solid fa-eye"></i> VISIBILITÉ</div>
+                            <div class="big-value">14 km</div>
+                            <div class="sub-text">Vue dégagée.</div>
+                        </div>
+
+                        <!-- PRESSURE -->
+                        <div class="glass-panel square-card">
+                            <div class="panel-title"><i class="fa-solid fa-gauge-high"></i> PRESSION</div>
+                            <div class="pressure-visual">
+                                <div class="pressure-text">1019<br><small>hPa</small></div>
+                            </div>
+                        </div>
+
+                    </div> <!-- End Squares Grid -->
+
+                </div> <!-- End Bento Grid -->
+            
+            </div> <!-- End Scroll Container -->
+
+            <!-- SIMULATION & CONTROLS (Hidden visually but accessible) -->
+            <div class="controls-overlay">
+                <button id="sim-btn" class="glass-btn">Mode Simulation</button>
+            </div>
+
+        </main>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
