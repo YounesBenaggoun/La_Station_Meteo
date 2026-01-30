@@ -13,24 +13,29 @@ const char *MQTT_TOPIC = "classroom/YounesBenaggoun";
 
 const char *MQTT_USER = "";
 const char *MQTT_PASS = "";
-
 const char *DEVICE_ID = "esp32-Younes";
 
 /* ================= TIMING ================= */
-const uint32_t publishIntervalMs = 5000;
+const uint32_t PUBLISH_INTERVAL_MS = 5000;
 unsigned long lastPublishMs = 0;
 uint32_t seq = 1;
 
 /* ================= HARDWARE ================= */
 const int BUTTON_PIN = 2;
-const int LED_RED    = 5;   // Fahrenheit
 const int LED_GREEN  = 4;   // Celsius
+const int LED_RED    = 5;   // Fahrenheit
 
-const int TEMP_PIN     = 22; // simulation
-const int HUMIDITY_PIN = 23; // simulation
+/* Simulation pins (pas de DHT en mode simulation) */
+const int TEMP_PIN     = 22;
+const int HUMIDITY_PIN = 23;
 
+/* ================= STATES ================= */
 bool degreeModeCelsius = true;
 bool lastButtonState = HIGH;
+
+/* Anti-rebond */
+unsigned long lastDebounceTime = 0;
+const unsigned long debounceDelay = 200;
 
 /* ================= CLIENTS ================= */
 WiFiClient wifiClient;
@@ -71,40 +76,39 @@ void connectMQTT() {
   }
 }
 
-/* ================= UTILS ================= */
-float fahrenheitToCelsius(float f) {
-  return (f - 32.0) / 1.8;
-}
-
 /* ================= BUTTON / LED ================= */
 void handleButton() {
   bool currentState = digitalRead(BUTTON_PIN);
 
   if (currentState == LOW && lastButtonState == HIGH) {
-    degreeModeCelsius = !degreeModeCelsius;
+    if (millis() - lastDebounceTime > debounceDelay) {
+      degreeModeCelsius = !degreeModeCelsius;
 
-    digitalWrite(LED_GREEN, degreeModeCelsius ? HIGH : LOW);
-    digitalWrite(LED_RED,   degreeModeCelsius ? LOW  : HIGH);
+      digitalWrite(LED_GREEN, degreeModeCelsius ? HIGH : LOW);
+      digitalWrite(LED_RED,   degreeModeCelsius ? LOW  : HIGH);
+
+      lastDebounceTime = millis();
+    }
   }
   lastButtonState = currentState;
 }
 
 /* ================= MQTT PUBLISH ================= */
-void publishTelemetry(float temp, float hum) {
+void publishTelemetry(float temperature, float humidity) {
   StaticJsonDocument<256> doc;
 
   doc["deviceId"] = DEVICE_ID;
   doc["seq"] = seq++;
-  doc["temperature"] = temp;
-  doc["humidity"] = hum;
+  doc["temperature"] = temperature;
+  doc["humidity"] = humidity;
   doc["unit"] = degreeModeCelsius ? "C" : "F";
 
   char payload[256];
   serializeJson(doc, payload);
 
-  mqtt.publish(MQTT_TOPIC, payload);
-  Serial.print("[MQTT] Published: ");
-  Serial.println(payload);
+  bool ok = mqtt.publish(MQTT_TOPIC, payload);
+  Serial.print("[MQTT] Publish: ");
+  Serial.println(ok ? payload : "FAILED");
 }
 
 /* ================= SETUP ================= */
@@ -113,11 +117,14 @@ void setup() {
   delay(1000);
 
   pinMode(BUTTON_PIN, INPUT_PULLUP);
-  pinMode(LED_RED, OUTPUT);
   pinMode(LED_GREEN, OUTPUT);
+  pinMode(LED_RED, OUTPUT);
 
+  /* État initial : Celsius */
   digitalWrite(LED_GREEN, HIGH);
   digitalWrite(LED_RED, LOW);
+
+  randomSeed(analogRead(0));
 
   connectWiFi();
   connectMQTT();
@@ -132,17 +139,19 @@ void loop() {
   handleButton();
 
   unsigned long now = millis();
-  if (now - lastPublishMs >= publishIntervalMs) {
+  if (now - lastPublishMs >= PUBLISH_INTERVAL_MS) {
     lastPublishMs = now;
 
-    // ===== MODE SIMULATION =====
-    float temp = random(180, 300) / 10.0; // 18.0 → 30.0
-    float hum  = random(300, 700) / 10.0; // 30 → 70 %
+    /* ===== MODE SIMULATION ===== */
+    float tempC = random(180, 300) / 10.0; // 18.0 → 30.0 °C
+    float humidity = random(300, 700) / 10.0; // 30 → 70 %
 
+    float tempToSend = tempC;
     if (!degreeModeCelsius) {
-      temp = temp * 1.8 + 32; // Celsius → Fahrenheit
+      tempToSend = tempC * 1.8 + 32.0; // °F
     }
 
-    publishTelemetry(temp, hum);
+    publishTelemetry(tempToSend, humidity);
   }
 }
+
