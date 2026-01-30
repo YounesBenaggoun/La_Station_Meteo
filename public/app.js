@@ -15,6 +15,13 @@ const feelsLikeVal = document.getElementById('feels-like-val');
 const humidityVal = document.getElementById('humidity-val');
 const simBtn = document.getElementById('sim-btn');
 const unitToggleBtn = document.getElementById('unit-toggle');
+// Background Layers
+const bgLayers = {
+    cold: document.querySelector('.bg-layer.bg-cold'),
+    mild: document.querySelector('.bg-layer.bg-mild'),
+    warm: document.querySelector('.bg-layer.bg-warm'),
+    hot: document.querySelector('.bg-layer.bg-hot')
+};
 const body = document.body;
 
 // State
@@ -155,17 +162,30 @@ function updateConditionText(temp, hum) {
 }
 
 function updateBackground(temp) {
-    body.classList.remove('bg-cold', 'bg-mild', 'bg-warm', 'bg-hot');
+    // Reset all layers first? No, we just want to set the active one.
+    // CSS opacity transition handles the cross-fade.
+    
+    // 1. Determine which layer should be active
+    let activeKey = 'mild'; // default
     
     if (temp < 10) {
-        body.classList.add('bg-cold');
+        activeKey = 'cold';
     } else if (temp >= 10 && temp < 20) {
-        body.classList.add('bg-mild');
+        activeKey = 'mild';
     } else if (temp >= 20 && temp < 30) {
-        body.classList.add('bg-warm');
+        activeKey = 'warm';
     } else {
-        body.classList.add('bg-hot');
+        activeKey = 'hot';
     }
+
+    // 2. Apply 'active' class to the target, remove from others
+    Object.keys(bgLayers).forEach(key => {
+        if (key === activeKey) {
+            bgLayers[key].classList.add('active');
+        } else {
+            bgLayers[key].classList.remove('active');
+        }
+    });
 }
 
 function updateTime() {
@@ -176,6 +196,12 @@ setInterval(updateTime, 1000);
 updateTime();
 
 // Controls
+unitToggleBtn.addEventListener('click', () => {
+    isFahrenheit = !isFahrenheit;
+    updateUnitButtonUI();
+    renderTemperature();
+});
+
 simBtn.addEventListener('click', () => {
     isSimulationMode = !isSimulationMode;
     
@@ -197,7 +223,8 @@ simBtn.addEventListener('click', () => {
             if (simHum < 0) simHum = 0; if (simHum > 100) simHum = 100;
 
             // Simulate incoming data format
-            updateDashboard({ temp: simTemp, hum: simHum, unit: "C" });
+            // Don't send unit in simulation to allow manual toggle testing
+            updateDashboard({ temp: simTemp, hum: simHum });
         }, 200);
     } else {
         simBtn.textContent = 'Mode Simulation';
@@ -205,13 +232,6 @@ simBtn.addEventListener('click', () => {
         clearInterval(simulationInterval);
         mainCondition.textContent = "En attente...";
     }
-});
-
-// Unit Toggle (Manual Override)
-unitToggleBtn.addEventListener('click', () => {
-    isFahrenheit = !isFahrenheit;
-    updateUnitButtonUI();
-    renderTemperature();
 });
 
 // Start MQTT Connection
