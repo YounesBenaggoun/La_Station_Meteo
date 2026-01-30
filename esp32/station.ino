@@ -2,225 +2,156 @@
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
 
-// Infos de connection Wifi
-
+/* ================= WIFI ================= */
 const char *WIFI_SSID = "s22ultraYounes";
 const char *WIFI_PASS = "12341234";
 
-// Infos MQTT
-
-const char *MQTT_HOST = "captain.dev0.pandor.cloud";
+/* ================= MQTT ================= */
+const char *MQTT_HOST  = "captain.dev0.pandor.cloud";
 const uint16_t MQTT_PORT = 1884;
 const char *MQTT_TOPIC = "classroom/YounesBenaggoun";
 
-// Si on avait de l'auth sur le MQTT
 const char *MQTT_USER = "";
 const char *MQTT_PASS = "";
-
 const char *DEVICE_ID = "esp32-Younes";
-uint32_t seq = 42;
-const uint32_t baseTs = 1767828437;
-const uint32_t publishIntervalMs = 5000;
 
+/* ================= TIMING ================= */
+const uint32_t PUBLISH_INTERVAL_MS = 5000;
+unsigned long lastPublishMs = 0;
+uint32_t seq = 1;
+
+/* ================= HARDWARE ================= */
+const int BUTTON_PIN = 2;
+const int LED_GREEN  = 4;   // Celsius
+const int LED_RED    = 5;   // Fahrenheit
+
+/* Simulation pins (pas de DHT en mode simulation) */
+const int TEMP_PIN     = 22;
+
+
+/* ================= STATES ================= */
+bool degreeModeCelsius = true;
+bool lastButtonState = 0;
+
+/* Anti-rebond */
+unsigned long lastDebounceTime = 0;
+const unsigned long debounceDelay = 200;
+
+/* ================= CLIENTS ================= */
 WiFiClient wifiClient;
 PubSubClient mqtt(wifiClient);
 
-unsigned long lastPublishMs = 0;
+/* ================= WIFI ================= */
+void connectWiFi() {
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(WIFI_SSID, WIFI_PASS);
 
-/////////////////
-///////////////
-
-const int Button_pin = 2;
-bool currentButtonState = 0;
-bool lastButtonState = 0;
-
-const int red_led = 5;
-const int green_led = 4;
-bool green_led_state = 0;
-
-int temperaturePin = 22;
-
-// float humidity = 0;
-float temperature = 0;
-float finaleTemperature = 0;
-
-bool degreeMode = 0;
-//////////////////////////
-////////////////////////////
-
-void connectWiFi()
-{
-    Serial.print("[WIFI] Connecting to "); // Serial.print => Pas de retour de ligne
-    Serial.println(WIFI_SSID);             // Serial.println => Retour de ligne
-
-    WiFi.mode(WIFI_STA);
-    WiFi.begin(WIFI_SSID, WIFI_PASS);
-
-    while (WiFi.status() != WL_CONNECTED)
-    {
-        delay(500);
-        Serial.print(".");
-    }
-
-    Serial.println("OK.");
-
-    Serial.print("WiFi: connected, IP=");
-    Serial.println(WiFi.localIP());
+  Serial.print("[WIFI] Connecting");
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println(" OK");
+  Serial.print("[WIFI] IP: ");
+  Serial.println(WiFi.localIP());
 }
 
-void connectMQTT()
-{
-    mqtt.setServer(MQTT_HOST, MQTT_PORT);
+/* ================= MQTT ================= */
+void connectMQTT() {
+  mqtt.setServer(MQTT_HOST, MQTT_PORT);
 
-    while (!mqtt.connected())
-    {
-        String clientId = String("esp32-") + String((uint32_t)ESP.getEfuseMac(), HEX);
+  while (!mqtt.connected()) {
+    String clientId = "esp32-" + String((uint32_t)ESP.getEfuseMac(), HEX);
+    Serial.print("[MQTT] Connecting as ");
+    Serial.println(clientId);
 
-        Serial.print("MQTT: connecting as ");
-        Serial.println(clientId);
-
-        bool ok;
-
-        ok = mqtt.connect(clientId.c_str(), MQTT_USER, MQTT_PASS);
-
-        if (ok)
-        {
-            Serial.println("[MQTT] Connected");
-        }
-        else
-        {
-            Serial.print("[MQTT] failed, rc=");
-            Serial.print(mqtt.state());
-            Serial.println(" retry in 2s");
-            delay(2000);
-        }
+    if (mqtt.connect(clientId.c_str(), MQTT_USER, MQTT_PASS)) {
+      Serial.println("[MQTT] Connected");
+    } else {
+      Serial.print("[MQTT] Failed, rc=");
+      Serial.print(mqtt.state());
+      Serial.println(" retry in 2s");
+      delay(2000);
     }
+  }
 }
 
-void publishDummyTelemetry(float tempC, float humPct, bool degreeMode)
-{
-    // float tempC = 22.4f + (float)random(-15,16) / 10.0f;
-    // float humPct = 42.67f + (float)random(-30,31) / 10.0f;
-    int batteryPct = 100;
+/* ================= BUTTON / LED ================= */
+void handleButton() {
+  bool currentState = digitalRead(BUTTON_PIN);
 
-    StaticJsonDocument<256> doc;
-    JsonObject t = doc.to<JsonObject>();
-    t["deviceId"] = DEVICE_ID;
-    t["ts"] = baseTs + (millis() / 1000);
-    t["seq"] = seq++;
-    t["tempC"] = tempC;
-    t["humPct"] = humPct;
-    t["degreeMode"] = degreeMode;
-    t["batteryPct"] = batteryPct;
+  if (currentState == LOW && lastButtonState == HIGH) {
+    if (millis() - lastDebounceTime > debounceDelay) {
+      degreeModeCelsius = !degreeModeCelsius;
 
-    char payload[256];
-    size_t n = serializeJson(doc, payload, sizeof(payload));
+      digitalWrite(LED_GREEN, degreeModeCelsius ? HIGH : LOW);
+      digitalWrite(LED_RED,   degreeModeCelsius ? LOW  : HIGH);
 
-    bool ok = mqtt.publish(MQTT_TOPIC, payload, n);
-    Serial.print("[MQTT] Publish to ");
-    Serial.print(MQTT_TOPIC);
-    Serial.print(" ... ");
-    Serial.println(ok ? payload : "FAILED");
-}
-///////////////////////////////////////
-////////////////////////////////////////
-
-float fahrenheitToCelsius(float fahren)
-{
-    return (fahren - 32) / 1.8;
+      lastDebounceTime = millis();
+    }
+  }
+  lastButtonState = currentState;
 }
 
-float getTemp()
-{
-    float calculatedTemp = 0;
+/* ================= MQTT PUBLISH ================= */
+void publishTelemetry(float temperature, float humidity, bool degreeModeCelsius) {
+  StaticJsonDocument<256> doc;
 
-    temperature = analogRead(temperaturePin);
+  doc["deviceId"] = DEVICE_ID;
+  doc["seq"] = seq++;
+  doc["temperature"] = temperature;
+  doc["humidity"] = humidity;
+  doc["unit"] = degreeModeCelsius;
 
-    currentButtonState = digitalRead(Button_pin);
+  char payload[256];
+  serializeJson(doc, payload);
 
-    if (currentButtonState != lastButtonState)
-    {
-        lastButtonState = currentButtonState;
-        if (currentButtonState == 0)
-        {
-            // Serial.println("keyDown ");
-        }
-        else
-        {
-            // Serial.println("KeyUp ");
-            if (green_led_state)
-            {
-                digitalWrite(green_led, HIGH);
-                digitalWrite(red_led, LOW);
-                green_led_state = 0;
-                degreeMode = 1;
-
-                // Serial.println(finaleTemperature);
-            }
-            else
-            {
-                digitalWrite(green_led, LOW);
-                digitalWrite(red_led, HIGH);
-                green_led_state = 1;
-                degreeMode = 0;
-            }
-        }
-    }
-
-    if (degreeMode)
-    {
-        calculatedTemp = fahrenheitToCelsius(temperature);
-    }
-    else
-    {
-        calculatedTemp = temperature;
-    }
-    return calculatedTemp;
-}
-/////////////////////////////////////
-/////////////////////////////////
-
-void setup()
-{
-    Serial.begin(115200);
-    delay(1000);
-
-    connectWiFi();
-    connectMQTT();
-    // put your setup code here, to run once:
-
-    /////////////////
-    pinMode(Button_pin, INPUT_PULLUP);
-    pinMode(temperaturePin, INPUT);
-    pinMode(humidityPin, INPUT);
-    ////////////////
+  bool ok = mqtt.publish(MQTT_TOPIC, payload);
+  Serial.print("[MQTT] Publish: ");
+  Serial.println(ok ? payload : "FAILED");
 }
 
-void loop()
-{
-    if (WiFi.status() != WL_CONNECTED)
-    {
-        connectWiFi();
-    }
-    if (!mqtt.connected())
-    {
-        connectMQTT();
-    }
+/* ================= SETUP ================= */
+void setup() {
+  Serial.begin(115200);
+  delay(1000);
 
-    mqtt.loop();
+  pinMode(BUTTON_PIN, INPUT_PULLUP);
+  pinMode(LED_GREEN, OUTPUT);
+  pinMode(LED_RED, OUTPUT);
 
-    unsigned long now = millis();
+  /* État initial : Celsius */
+  digitalWrite(LED_GREEN, HIGH);
+  digitalWrite(LED_RED, LOW);
 
-    ////////////////////////////////////////
+  randomSeed(analogRead(0));
 
-    humidity = analogRead(humidityPin);
-    finaleTemperature = getTemp();
-    ///////////////////////////////////////////
-
-    if (now - lastPublishMs >= publishIntervalMs)
-    {
-
-        lastPublishMs = now;
-        publishDummyTelemetry(finaleTemperature, humidity, degreeMode);
-    }
+  connectWiFi();
+  connectMQTT();
 }
+
+/* ================= LOOP ================= */
+void loop() {
+  if (WiFi.status() != WL_CONNECTED) connectWiFi();
+  if (!mqtt.connected()) connectMQTT();
+  mqtt.loop();
+
+  handleButton();
+
+  unsigned long now = millis();
+  if (now - lastPublishMs >= PUBLISH_INTERVAL_MS) {
+    lastPublishMs = now;
+
+    /* ===== MODE SIMULATION ===== */
+    float tempC = random(180, 300) / 10.0; // 18.0 → 30.0 °C
+    float humidity = random(300, 700) / 10.0; // 30 → 70 %
+
+    float tempToSend = tempC;
+    if (!degreeModeCelsius) {
+      tempToSend = tempC * 1.8 + 32.0; // °F
+    }
+
+    publishTelemetry(tempToSend, humidity);
+  }
+}
+

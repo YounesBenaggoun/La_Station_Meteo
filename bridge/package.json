@@ -1,0 +1,24 @@
+{
+  "name": "la_station_meteo",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/YounesBenaggoun/La_Station_Meteo.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/YounesBenaggoun/La_Station_Meteo/issues"
+  },
+  "homepage": "https://github.com/YounesBenaggoun/La_Station_Meteo#readme",
+  "dependencies": {
+    "mqtt": "^5.14.1"
+  }
+}
