@@ -1,6 +1,6 @@
 // Configuration
-const WS_URL = `ws://${window.location.hostname}:${window.location.port}`;
-let currentTopic = 'station/meteo/data';
+const MQTT_BROKER = 'ws://captain.dev0.pandor.cloud:1884';
+const MQTT_TOPIC = 'hetic/groupe1/meteo'; // Remplacez 'groupe1' par votre numéro de groupe
 
 // DOM Elements
 const mainTemp = document.getElementById('main-temp');
@@ -18,70 +18,107 @@ const unitToggleBtn = document.getElementById('unit-toggle');
 const body = document.body;
 
 // State
-let isConnected = false;
+let client = null;
 let simulationInterval = null;
 let isSimulationMode = false;
-let currentTempC = 0; // Store last known temp in Celsius
+let currentTempC = 0; // Store last known temp in Celsius (default base)
 let isFahrenheit = false;
 
 // --- Logic ---
 
-function connectWebSocket() {
-    const ws = new WebSocket(WS_URL);
+function connectMQTT() {
+    console.log(`Connecting to MQTT broker: ${MQTT_BROKER}...`);
+    client = mqtt.connect(MQTT_BROKER);
 
-    ws.onopen = () => {
-        isConnected = true;
-        console.log('SYS', 'UPLINK_ESTABLISHED');
-        mainCondition.textContent = "Connecté";
-    };
-
-    ws.onmessage = (event) => {
-        if (isSimulationMode) return;
-        try {
-            const data = JSON.parse(event.data);
-            if (data.type === 'info') return;
-            if (data.topic === currentTopic) {
-                const payload = JSON.parse(data.message);
-                updateDashboard(payload);
+    client.on('connect', () => {
+        console.log('SYS', 'MQTT_CONNECTED');
+        mainCondition.textContent = "Connecté (MQTT)";
+        
+        client.subscribe(MQTT_TOPIC, (err) => {
+            if (!err) {
+                console.log(`Subscribed to topic: ${MQTT_TOPIC}`);
+            } else {
+                console.error('Subscription error:', err);
             }
-        } catch (e) {
-            console.error(e);
-        }
-    };
+        });
+    });
 
-    ws.onclose = () => {
-        isConnected = false;
-        console.log('ERR', 'CONNECTION_LOST. RETRYING...');
+    client.on('message', (topic, message) => {
+        if (isSimulationMode) return;
+        
+        console.log(`[Received] ${topic}:`, message.toString());
+
+        try {
+            const payload = JSON.parse(message.toString());
+            
+            // Expected JSON: {"temp": float, "hum": float, "unit": "C" or "F"}
+            updateDashboard(payload);
+
+        } catch (e) {
+            console.error('JSON Parsing Error:', e);
+        }
+    });
+
+    client.on('error', (err) => {
+        console.error('MQTT Error:', err);
+        mainCondition.textContent = "Erreur MQTT";
+    });
+
+    client.on('offline', () => {
+        console.log('MQTT Offline');
         mainCondition.textContent = "Déconnecté...";
-        setTimeout(connectWebSocket, 5000);
-    };
+    });
 }
 
 function updateDashboard(data) {
-    if (data.temperature !== undefined) {
-        currentTempC = data.temperature;
+    // Handle Temperature (support 'temp' or 'temperature' for compatibility)
+    const tempVal = data.temp !== undefined ? data.temp : data.temperature;
+    
+    if (tempVal !== undefined) {
+        // Handle Unit Update from Device
+        if (data.unit) {
+            const newUnitIsF = (data.unit === 'F');
+            if (isFahrenheit !== newUnitIsF) {
+                isFahrenheit = newUnitIsF;
+                updateUnitButtonUI();
+            }
+        }
+
+        // If data comes in F, convert to C for internal storage/logic if needed, 
+        // OR just store what we have. 
+        // Logic: The app stores `currentTempC` as base.
+        // If device sends F, we convert to C for base storage.
+        if (isFahrenheit) {
+            currentTempC = (tempVal - 32) * 5/9;
+        } else {
+            currentTempC = tempVal;
+        }
+
         renderTemperature();
         
         // Update Dynamic Background (always based on Celsius)
         updateBackground(currentTempC);
-        updateConditionText(currentTempC, data.humidity);
     }
     
-    if (data.humidity !== undefined) {
-        if (humidityVal) humidityVal.textContent = `${data.humidity.toFixed(0)} %`;
+    // Handle Humidity (support 'hum' or 'humidity')
+    const humVal = data.hum !== undefined ? data.hum : data.humidity;
+    
+    if (humVal !== undefined) {
+        if (humidityVal) humidityVal.textContent = `${humVal.toFixed(0)} %`;
+        if (tempVal !== undefined) updateConditionText(currentTempC, humVal);
     }
 }
 
 function renderTemperature() {
     let displayTemp = currentTempC;
-    let unit = "°"; // or °C
+    let unitSymbol = "°";
 
     if (isFahrenheit) {
         displayTemp = (currentTempC * 9/5) + 32;
-        unit = "°F";
+        unitSymbol = "°F";
     }
 
-    const tempStr = displayTemp.toFixed(0) + "°";
+    const tempStr = displayTemp.toFixed(1) + "°"; // Show 1 decimal for precision
     
     // Update Main Display
     mainTemp.textContent = tempStr;
@@ -89,7 +126,6 @@ function renderTemperature() {
     hourlyNow.textContent = tempStr;
 
     // Update High/Low (Mock logic: +/- 3 degrees for visual)
-    // We calculate these based on the current unit
     const high = isFahrenheit ? ((currentTempC + 3) * 9/5 + 32) : (currentTempC + 3);
     const low = isFahrenheit ? ((currentTempC - 2) * 9/5 + 32) : (currentTempC - 2);
 
@@ -101,6 +137,10 @@ function renderTemperature() {
     const feelsLikeDisplay = isFahrenheit ? (feelsLikeC * 9/5 + 32) : feelsLikeC;
     
     if (feelsLikeVal) feelsLikeVal.textContent = `${feelsLikeDisplay.toFixed(0)}°`;
+}
+
+function updateUnitButtonUI() {
+    unitToggleBtn.textContent = isFahrenheit ? "Basculer en °C" : "Basculer en °F";
 }
 
 function updateConditionText(temp, hum) {
@@ -156,8 +196,9 @@ simBtn.addEventListener('click', () => {
             simHum += (Math.random() - 0.5) * 2;
             if (simHum < 0) simHum = 0; if (simHum > 100) simHum = 100;
 
-            updateDashboard({ temperature: simTemp, humidity: simHum });
-        }, 200); // Fast updates to show smooth transition
+            // Simulate incoming data format
+            updateDashboard({ temp: simTemp, hum: simHum, unit: "C" });
+        }, 200);
     } else {
         simBtn.textContent = 'Mode Simulation';
         simBtn.style.background = 'rgba(0,0,0,0.4)';
@@ -166,11 +207,12 @@ simBtn.addEventListener('click', () => {
     }
 });
 
-// Unit Toggle
+// Unit Toggle (Manual Override)
 unitToggleBtn.addEventListener('click', () => {
     isFahrenheit = !isFahrenheit;
-    unitToggleBtn.textContent = isFahrenheit ? "Basculer en °C" : "Basculer en °F";
+    updateUnitButtonUI();
     renderTemperature();
 });
 
-connectWebSocket();
+// Start MQTT Connection
+connectMQTT();

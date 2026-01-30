@@ -12,7 +12,7 @@ const char* password = "WIFI_PASSWORD";
 // MQTT Broker
 const char* mqtt_server = "captain.dev0.pandor.cloud";
 const int mqtt_port = 1884;
-const char* mqtt_topic = "station/meteo/data";
+const char* mqtt_topic = "hetic/groupe1/meteo"; // REMPLACEZ 'groupe1' PAR VOTRE NUMERO DE GROUPE
 
 // Hardware Pinout
 #define DHTPIN 4        // DHT22 Data Pin
@@ -169,10 +169,10 @@ void publishData() {
   // Let's send the raw Celsius value + the current Unit status so the web can sync if needed.
   
   StaticJsonDocument<200> doc;
-  doc["temperature"] = t; // Always send Celsius base for consistency
-  doc["humidity"] = h;
+  doc["temp"] = t; // Celsius
+  doc["hum"] = h;
   doc["unit"] = isFahrenheit ? "F" : "C";
-  doc["device_mode"] = "real"; // vs "simulation"
+  // doc["device_mode"] = "real"; 
 
   char buffer[256];
   serializeJson(doc, buffer);
