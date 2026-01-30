@@ -1,0 +1,429 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Station Météo Connectée</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 20px;
+      }
+
+      .container {
+        background: white;
+        border-radius: 20px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        padding: 40px;
+        max-width: 500px;
+        width: 100%;
+      }
+
+      .header {
+        text-align: center;
+        margin-bottom: 40px;
+      }
+
+      .header h1 {
+        color: #333;
+        margin-bottom: 10px;
+        font-size: 28px;
+      }
+
+      .status {
+        display: flex;
+        justify-content: center;
+        gap: 20px;
+        margin-top: 15px;
+        font-size: 14px;
+      }
+
+      .status-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .status-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: #ccc;
+      }
+
+      .status-dot.connected {
+        background: #4caf50;
+        box-shadow: 0 0 8px #4caf50;
+      }
+
+      .weather-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 20px;
+        padding: 30px;
+        color: white;
+        margin-bottom: 30px;
+        text-align: center;
+      }
+
+      .temperature-display {
+        font-size: 60px;
+        font-weight: bold;
+        margin: 20px 0;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .humidity-display {
+        font-size: 24px;
+        opacity: 0.9;
+        margin: 10px 0;
+      }
+
+      .unit-indicator {
+        font-size: 18px;
+        margin-top: 15px;
+        padding-top: 15px;
+        border-top: 1px solid rgba(255, 255, 255, 0.3);
+        display: flex;
+        justify-content: center;
+        gap: 15px;
+      }
+
+      .unit-btn {
+        padding: 8px 16px;
+        border-radius: 20px;
+        border: 2px solid rgba(255, 255, 255, 0.5);
+        background: transparent;
+        color: white;
+        cursor: pointer;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        font-size: 14px;
+      }
+
+      .unit-btn:hover {
+        border-color: white;
+        box-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+      }
+
+      .unit-btn.active {
+        background: rgba(255, 255, 255, 0.3);
+        border-color: white;
+      }
+
+      .controls {
+        display: grid;
+        gap: 15px;
+      }
+
+      .control-group {
+        background: #f5f5f5;
+        padding: 20px;
+        border-radius: 15px;
+      }
+
+      .control-group label {
+        display: block;
+        margin-bottom: 10px;
+        color: #666;
+        font-weight: 600;
+        font-size: 14px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      .button-group {
+        display: flex;
+        gap: 10px;
+      }
+
+      button {
+        flex: 1;
+        padding: 12px;
+        border: none;
+        border-radius: 10px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        font-size: 14px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      button.primary {
+        background: #667eea;
+        color: white;
+      }
+
+      button.primary:hover {
+        background: #5568d3;
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+      }
+
+      button.primary:active {
+        transform: translateY(0);
+      }
+
+      .info-box {
+        background: #e8f5e9;
+        border-left: 4px solid #4caf50;
+        padding: 15px;
+        border-radius: 8px;
+        margin-top: 20px;
+        font-size: 13px;
+        color: #2e7d32;
+        line-height: 1.6;
+      }
+
+      .info-box.warning {
+        background: #fff3e0;
+        border-left-color: #ff9800;
+        color: #e65100;
+      }
+
+      .timestamp {
+        text-align: center;
+        color: #999;
+        font-size: 12px;
+        margin-top: 15px;
+      }
+
+      .loader {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        background: #667eea;
+        border-radius: 50%;
+        animation: pulse 1.5s ease-in-out infinite;
+      }
+
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.5;
+        }
+      }
+
+      @media (max-width: 600px) {
+        .container {
+          padding: 25px;
+        }
+
+        .header h1 {
+          font-size: 24px;
+        }
+
+        .temperature-display {
+          font-size: 48px;
+        }
+
+        .humidity-display {
+          font-size: 18px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h1>🌡️ Station Météo</h1>
+        <div class="status">
+          <div class="status-item">
+            <div class="status-dot" id="mqttStatus"></div>
+            <span>MQTT</span>
+          </div>
+          <div class="status-item">
+            <div class="status-dot" id="wsStatus"></div>
+            <span>WebSocket</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="weather-card">
+        <div>Température</div>
+        <div class="temperature-display" id="temperature">
+          --°<span id="unit">C</span>
+        </div>
+
+        <div>Humidité</div>
+        <div class="humidity-display" id="humidity">--%</div>
+
+        <div class="unit-indicator">
+          <button
+            class="unit-btn active"
+            id="btnCelsius"
+            onclick="setUnit('C')"
+          >
+            °C
+          </button>
+          <button class="unit-btn" id="btnFahrenheit" onclick="setUnit('F')">
+            °F
+          </button>
+        </div>
+      </div>
+
+      <div class="controls">
+        <div class="control-group">
+          <label>Mode</label>
+          <div
+            id="simulationMode"
+            style="
+              padding: 10px;
+              background: white;
+              border-radius: 8px;
+              text-align: center;
+              font-weight: 600;
+              color: #667eea;
+            "
+          >
+            Simulation
+          </div>
+        </div>
+      </div>
+
+      <div class="info-box">
+        ℹ️ <strong>Interface temps réel</strong><br />
+        Les données sont mises à jour automatiquement toutes les 5 secondes via
+        WebSocket.
+      </div>
+
+      <div class="timestamp">
+        Dernière mise à jour: <span id="lastUpdate">--</span>
+      </div>
+    </div>
+
+    <script>
+      const WEBSOCKET_URL = `ws://${window.location.host}`;
+      let ws = null;
+      let currentUnit = "C";
+      let currentTemp = 0;
+
+      // ===== WebSocket Connection =====
+      function connectWebSocket() {
+        ws = new WebSocket(WEBSOCKET_URL);
+
+        ws.onopen = () => {
+          console.log("✓ WebSocket connecté");
+          updateWSStatus(true);
+        };
+
+        ws.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            handleMessage(data);
+          } catch (e) {
+            console.error("Erreur parsing message:", e);
+          }
+        };
+
+        ws.onerror = (error) => {
+          console.error("WebSocket error:", error);
+          updateWSStatus(false);
+        };
+
+        ws.onclose = () => {
+          console.log("✗ WebSocket déconnecté");
+          updateWSStatus(false);
+          setTimeout(connectWebSocket, 3000);
+        };
+      }
+
+      // ===== Message Handler =====
+      function handleMessage(data) {
+        if (data.type === "data") {
+          console.log("Données reçues:", data);
+          updateUI(data);
+        }
+      }
+
+      // ===== Update UI =====
+      function updateUI(data) {
+        // Température
+        currentTemp = data.temperature;
+        let displayTemp = data.temperature;
+
+        if (currentUnit === "F" && data.unit === "C") {
+          displayTemp = (data.temperature * 9) / 5 + 32;
+        } else if (currentUnit === "C" && data.unit === "F") {
+          displayTemp = ((data.temperature - 32) * 5) / 9;
+        }
+
+        document.getElementById("temperature").textContent =
+          displayTemp.toFixed(1) + "°";
+        document.getElementById("unit").textContent = currentUnit;
+
+        // Humidité
+        document.getElementById("humidity").textContent =
+          data.humidity.toFixed(1) + "%";
+
+        // Simulation mode
+        const modeText = data.simulation ? "Simulation" : "Mode réel";
+        document.getElementById("simulationMode").textContent = modeText;
+
+        // Timestamp
+        const time = new Date(data.receivedAt).toLocaleTimeString("fr-FR");
+        document.getElementById("lastUpdate").textContent = time;
+
+        // MQTT Status (if available)
+        if (data.simulation !== undefined) {
+          updateMQTTStatus(true);
+        }
+      }
+
+      // ===== Unit Change =====
+      function setUnit(unit) {
+        currentUnit = unit;
+        document
+          .getElementById("btnCelsius")
+          .classList.toggle("active", unit === "C");
+        document
+          .getElementById("btnFahrenheit")
+          .classList.toggle("active", unit === "F");
+
+        // Envoyer au serveur
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ unit }));
+        }
+      }
+
+      // ===== Status Updates =====
+      function updateWSStatus(connected) {
+        const el = document.getElementById("wsStatus");
+        if (connected) {
+          el.classList.add("connected");
+        } else {
+          el.classList.remove("connected");
+        }
+      }
+
+      function updateMQTTStatus(connected) {
+        const el = document.getElementById("mqttStatus");
+        if (connected) {
+          el.classList.add("connected");
+        } else {
+          el.classList.remove("connected");
+        }
+      }
+
+      // ===== Init =====
+      document.addEventListener("DOMContentLoaded", () => {
+        console.log("🚀 Démarrage de l'interface");
+        connectWebSocket();
+      });
+    </script>
+  </body>
+</html>
