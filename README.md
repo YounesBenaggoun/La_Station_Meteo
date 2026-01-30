@@ -137,4 +137,9 @@ node index.js
 * Intégration complète validée en local
 
 ---
+YOUNES BENAGGOUN
+RAYANE MOUHAJER
+DUMAS JOLLY AXEL
+DANALI MABANZA
+KATIA SAKRI 
 
